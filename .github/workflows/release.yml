@@ -7,6 +7,10 @@ on:
     paths:
       - 'custom_components/ha_lightning/manifest.json'
 
+# Grant the workflow permissions needed to create releases using GITHUB_TOKEN
+permissions:
+  contents: write
+
 jobs:
   create_release:
     runs-on: ubuntu-latest
