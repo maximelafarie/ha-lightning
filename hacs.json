@@ -1,7 +1,7 @@
 {
   "name": "HA Lightning",
   "description": "Lightning strike integration using LightningMaps websocket or JSON feeds",
-  "content_in_root": false,
+  "content_in_root": true,
   "zip_release": true,
   "filename": "release.zip",
   "render_readme": true,
