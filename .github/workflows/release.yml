@@ -1,0 +1,36 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'custom_components/ha_lightning/manifest.json'
+
+jobs:
+  create_release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read version from manifest
+        id: version
+        run: |
+          VERSION=$(jq -r .version custom_components/ha_lightning/manifest.json)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          release_name: v${{ steps.version.outputs.version }}
+          body: |
+            Release ${{ steps.version.outputs.version }}
+
+            This release was created automatically by the release workflow.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

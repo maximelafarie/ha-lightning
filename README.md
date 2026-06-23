@@ -11,9 +11,24 @@ Features
 
 Note: The integration will use the websocket feed automatically when the configured `feed_url` starts with `ws://` or `wss://`. If using the websocket, the integration sends a subscription payload including a bounding box (derived from zones) so the server returns strokes for the area of interest.
 Installation
+
+Option A — HACS (recommended)
+1. In HACS go to Settings → Custom repositories and add this repository URL as a Custom Repository with category "Integration" (the hacs.json in this repo will let HACS detect the integration).
+2. Install the integration from HACS. HACS copies the integration to `custom_components/` for you.
+3. If the Lovelace card is not automatically added, add the resource `/local/ha-lightning-card.js` (JavaScript Module) or copy `custom_components/ha_lightning/www/ha-lightning-card.js` to `<config>/www/`.
+
+Option B — Manual
 1. Copy the `custom_components/ha_lightning` folder into your Home Assistant `config/custom_components/` directory.
 2. If you want the Lovelace card, copy `custom_components/ha_lightning/www/ha-lightning-card.js` to `<config>/www/ha-lightning-card.js` (or add the resource directly from the file).
-3. In `configuration.yaml` add:
+
+Configuration (UI)
+- Install via HACS or manually and then add the integration in Configuration → Integrations → + Add Integration → "HA Lightning".
+- In the UI setup you can set:
+  - feed_url: either a HTTP(S) JSON feed or a websocket URL (e.g., `wss://live2.lightningmaps.org/`)
+  - scan_interval: polling interval (seconds) for HTTP feeds
+  - zones: add, edit, remove zones (name, latitude, longitude, radius_km, cooldown_s)
+
+Example YAML (legacy YAML support)
 
 ```yaml
 ha_lightning:
@@ -27,9 +42,7 @@ ha_lightning:
       cooldown_s: 300
 ```
 
-4. Restart Home Assistant.
-5. Add the Lovelace resource (UI -> Resources): `/local/ha-lightning-card.js` type: JavaScript Module
-6. Use the card in Lovelace:
+Lovelace card
 
 ```yaml
 type: 'custom:ha-lightning-card'
@@ -38,9 +51,17 @@ center: [48.1, 11.6]
 zoom: 8
 ```
 
-Notes on Blitzortung API
-- Blitzortung's raw real-time feed may require a socket/proxy; the integration expects a JSON endpoint returning either a list of strike objects or an object with a `strikes` list. Each strike should contain `latitude`/`longitude` (or `lat`/`lon`) and `time` (unix timestamp or ISO string).
-- If using Blitzortung, consider deploying a small proxy that translates the feed into the expected JSON format.
+```yaml
+type: 'custom:ha-lightning-card'
+entity: sensor.ha_lightning_strikes
+center: [48.1, 11.6]
+zoom: 8
+```
+
+Notes on feeds
+- If using an HTTP JSON feed, the integration expects either a JSON list of strike objects or an object with a `strikes` list. Each strike should contain `latitude`/`longitude` (or `lat`/`lon`) and `time` (unix timestamp or ISO string).
+- For real-time data the integration supports the LightningMaps websocket feed. Use `wss://live2.lightningmaps.org/` as `feed_url` in the UI to receive live strokes. The integration sends a subscription payload including a bounding box derived from your zones so the server returns strokes for that area.
+- If the feed you want to use is not directly accessible, consider deploying a small proxy that translates the source into the expected JSON or websocket format.
 
 Avoiding recorder overload
 - The integration keeps strike details in attributes of a single sensor to avoid creating a new entity per strike.

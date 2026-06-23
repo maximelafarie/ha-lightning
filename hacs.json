@@ -1,0 +1,8 @@
+{
+  "name": "HA Lightning",
+  "description": "Lightning strike integration using LightningMaps websocket or JSON feeds",
+  "is_plugin": false,
+  "domains": ["ha_lightning"],
+  "content": ["custom_components/ha_lightning"],
+  "zip_release": true
+}
