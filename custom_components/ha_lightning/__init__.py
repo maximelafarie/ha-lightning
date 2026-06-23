@@ -54,7 +54,8 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up the integration from a config entry (UI)."""
 
-    data = entry.data
+    # prefer options over data so OptionsFlow updates take effect
+    data = entry.options or entry.data
     feed_url = data.get("feed_url")
     scan = int(data.get("scan_interval", DEFAULT_SCAN_INTERVAL))
 
