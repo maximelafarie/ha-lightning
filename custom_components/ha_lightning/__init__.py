@@ -32,6 +32,9 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     hass.data.setdefault(DOMAIN, {})["coordinator"] = coordinator
     hass.data[DOMAIN]["zones"] = conf.get("zones", [])
 
+    # prime coordinator in background so platforms receive data shortly after HA boot
+    hass.async_create_task(coordinator.async_refresh())
+
     # register services
     await services.async_setup_services(hass)
 
