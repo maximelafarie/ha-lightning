@@ -25,18 +25,15 @@ jobs:
           VERSION=$(jq -r .version custom_components/ha_lightning/manifest.json)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Create release archive (integration-only, root-level)
+      - name: Create release archive (integration files at zip root)
         run: |
-          echo "Creating release archive with integration files at root..."
+          echo "Creating release archive with integration files at zip root..."
           git fetch --no-tags --depth=1 origin || true
           rm -rf package || true
-          mkdir -p package/ha_lightning
-          # copy integration files into package/ha_lightning
-          cp -r custom_components/ha_lightning/* package/ha_lightning/
-          # copy hacs.json and README into package root
-          cp hacs.json package/
-          cp README.md package/ || true
-          # create zip from package contents so ha_lightning/ is at zip root
+          mkdir -p package
+          # copy integration files directly into package root
+          cp -r custom_components/ha_lightning/* package/
+          # create zip from package contents so integration files are at zip root
           (cd package && zip -r ../release.zip .)
 
       - name: Inspect archive contents
