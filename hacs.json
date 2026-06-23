@@ -4,5 +4,7 @@
   "is_plugin": false,
   "domains": ["ha_lightning"],
   "content": ["custom_components/ha_lightning"],
-  "zip_release": true
+  "zip_release": true,
+  "filename": "release.zip",
+  "categories": ["integration", "plugin"]
 }
