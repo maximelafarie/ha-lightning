@@ -35,6 +35,17 @@ jobs:
             git archive --format=zip -o release.zip HEAD
           )
 
+      - name: Inspect archive contents
+        run: |
+          echo "Listing release.zip contents:"
+          unzip -l release.zip || true
+
+      - name: Upload release artifact (for inspection)
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-zip
+          path: release.zip
+
       - name: Create GitHub Release and attach archive
         # use softprops/action-gh-release to avoid deprecated set-output usage
         uses: softprops/action-gh-release@v1
