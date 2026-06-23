@@ -133,11 +133,13 @@ class LightningCoordinator(DataUpdateCoordinator):
                 async with self._session.ws_connect(url, heartbeat=30) as ws:
                     _LOGGER.info("Connected to lightning websocket %s", url)
 
-                    # send initial payload: either provided or a sensible default
+                    # send initial payload: either provided or the lightningmaps.org-shaped default
                     if initial_payload is None:
+                        # default payload closely matching lightningmaps.org examples
+                        # p: [max_lat, max_lon, min_lat, min_lon]
                         payload = {
                             "v": 24,
-                            "i": {"2": 0},
+                            "i": {},
                             "s": False,
                             "x": 0,
                             "w": 0,
@@ -146,13 +148,27 @@ class LightningCoordinator(DataUpdateCoordinator):
                             "a": 4,
                             "z": 10,
                             "b": True,
-                            "h": "",
-                            "l": 50,
-                            "t": int(datetime.utcnow().timestamp()),
+                            # h contains center/zoom metadata; will be filled if center available
+                            "h": "#m=oss;t=3;s=0;o=1;b=0.00;ts=0;y=0;x=0;z=10;d=2;dl=2;dc=0;",
+                            "l": 1,
+                            "t": 1,
                             "from_lightningmaps_org": True,
+                            "r": "A",
                         }
                         if bbox:
+                            # ensure order [max_lat, max_lon, min_lat, min_lon]
                             payload["p"] = bbox
+                            # compute rough center for h field
+                            try:
+                                max_lat, max_lon, min_lat, min_lon = bbox
+                                center_lat = (max_lat + min_lat) / 2.0
+                                center_lon = (max_lon + min_lon) / 2.0
+                                payload["h"] = f"#m=oss;t=3;s=0;o=1;b=0.00;ts=0;y={center_lat:.4f};x={center_lon:.4f};z={payload.get('z',10)};d=2;dl=2;dc=0;"
+                            except Exception:
+                                pass
+                        else:
+                            # example default bbox used by many clients
+                            payload["p"] = [46.2, 11.9, 45.3, 9.5]
                     else:
                         payload = initial_payload
 
