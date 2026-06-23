@@ -81,8 +81,36 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setup(entry, "sensor")
     await hass.config_entries.async_forward_entry_setup(entry, "binary_sensor")
 
-    # prime coordinator
-    hass.async_create_task(coordinator.async_refresh())
+    # if websocket URL requested, start ws listener using zones to compute bbox
+    if feed_url and str(feed_url).startswith(("ws://", "wss://")):
+        # compute bbox [max_lat, max_lon, min_lat, min_lon] from zones if available
+        bbox = None
+        try:
+            zones = zones or []
+            if zones:
+                lats = []
+                lons = []
+                for z in zones:
+                    try:
+                        lat = float(z.get("latitude"))
+                        lon = float(z.get("longitude"))
+                        radius_km = float(z.get("radius_km", 10))
+                    except Exception:
+                        continue
+                    # approximate degree extents
+                    lat_deg = radius_km / 111.0
+                    lon_deg = radius_km / max(0.1, (111.320 * abs(lat) / 45 + 1))
+                    lats.extend([lat + lat_deg, lat - lat_deg])
+                    lons.extend([lon + lon_deg, lon - lon_deg])
+                if lats and lons:
+                    bbox = [max(lats), max(lons), min(lats), min(lons)]
+        except Exception:
+            bbox = None
+        # start websocket background task
+        hass.async_create_task(coordinator.async_start_ws(bbox=bbox))
+    else:
+        # prime coordinator polling for HTTP feeds
+        hass.async_create_task(coordinator.async_refresh())
 
     return True
 
