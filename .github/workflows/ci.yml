@@ -26,4 +26,6 @@ jobs:
 
       - name: Run tests
         run: |
+          # Ensure the repository root is on PYTHONPATH so tests can import the integration
+          export PYTHONPATH="${PWD}"
           pytest -q
