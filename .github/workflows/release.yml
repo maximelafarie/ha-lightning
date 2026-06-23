@@ -25,7 +25,13 @@ jobs:
           VERSION=$(jq -r .version custom_components/ha_lightning/manifest.json)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Create GitHub Release
+      - name: Create release archive
+        run: |
+          echo "Creating release archive..."
+          git fetch --no-tags --depth=1 origin || true
+          git archive --format=zip -o release.zip HEAD
+
+      - name: Create GitHub Release and attach archive
         # use softprops/action-gh-release to avoid deprecated set-output usage
         uses: softprops/action-gh-release@v1
         with:
@@ -37,5 +43,6 @@ jobs:
             This release was created automatically by the release workflow.
           draft: false
           prerelease: false
+          files: release.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
