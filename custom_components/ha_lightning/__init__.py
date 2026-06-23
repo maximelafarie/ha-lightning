@@ -34,9 +34,13 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     coordinator = LightningCoordinator(hass, feed_url=feed_url, update_interval=timedelta(seconds=scan))
     hass.data.setdefault(DOMAIN, {})["coordinator"] = coordinator
 
-    # try to normalize zones from YAML
-    zones = conf.get("zones", [])
-    hass.data[DOMAIN]["zones"] = zones
+    # try to normalize zone from YAML (legacy supports 'zones' list; pick first)
+    zone = conf.get("zone")
+    if zone is None:
+        legacy = conf.get("zones", [])
+        if isinstance(legacy, list) and len(legacy) > 0:
+            zone = legacy[0]
+    hass.data[DOMAIN]["zone"] = zone
 
     # register services
     await services.async_setup_services(hass)
@@ -55,23 +59,28 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up the integration from a config entry (UI)."""
 
     # prefer options over data so OptionsFlow updates take effect
+    # prefer options over data so OptionsFlow updates take effect
     data = entry.options or entry.data
     feed_url = data.get("feed_url")
     scan = int(data.get("scan_interval", DEFAULT_SCAN_INTERVAL))
 
-    # parse zones if provided
-    zones = data.get("zones", [])
-    if isinstance(zones, str):
+    # parse single zone if provided
+    zone = data.get("zone")
+    if isinstance(zone, str):
         try:
-            zones = json.loads(zones)
+            zone = json.loads(zone)
         except Exception:
-            _LOGGER.warning("Could not parse zones for entry %s", entry.entry_id)
-            zones = []
+            _LOGGER.warning("Could not parse zone for entry %s", entry.entry_id)
+            zone = None
+    # legacy support: if 'zones' list exists, use first
+    legacy = data.get("zones")
+    if zone is None and isinstance(legacy, list) and len(legacy) > 0:
+        zone = legacy[0]
 
     coordinator = LightningCoordinator(hass, feed_url=feed_url, update_interval=timedelta(seconds=scan))
 
     hass.data.setdefault(DOMAIN, {})["coordinator"] = coordinator
-    hass.data[DOMAIN]["zones"] = zones
+    hass.data[DOMAIN]["zone"] = zone
     hass.data[DOMAIN]["entry_id"] = entry.entry_id
 
     # register services (idempotent)

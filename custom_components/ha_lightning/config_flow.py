@@ -21,6 +21,10 @@ async def async_validate_feed(hass: HomeAssistant, url: str) -> None:
     if not url:
         raise ValueError("empty")
 
+    # websocket URLs are accepted without probing
+    if url.startswith(("ws://", "wss://")):
+        return
+
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url, timeout=10) as resp:
@@ -72,7 +76,12 @@ class HaLightningConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 {
                     vol.Required("feed_url", default=""): str,
                     vol.Optional("scan_interval", default=DEFAULT_SCAN_INTERVAL): int,
-                    vol.Optional("zones", default=""): str,
+                    # single zone fields
+                    vol.Optional("zone_name", default=""): str,
+                    vol.Optional("latitude", default=""): str,
+                    vol.Optional("longitude", default=""): str,
+                    vol.Optional("radius_km", default=10): vol.Coerce(float),
+                    vol.Optional("cooldown_s", default=300): int,
                 }
             )
             return self.async_show_form(step_id="user", data_schema=schema)
@@ -83,24 +92,32 @@ class HaLightningConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         except ValueError as exc:
             errors["feed_url"] = str(exc)
 
-        # validate zones JSON if provided
-        zones_raw = user_input.get("zones", "")
-        zones = []
-        if zones_raw:
+        # assemble single zone if provided
+        zone = None
+        if user_input.get("latitude") and user_input.get("longitude"):
             try:
-                parsed = json.loads(zones_raw)
-                if not isinstance(parsed, list):
-                    raise ValueError("zones must be a JSON list")
-                zones = parsed
+                zone = {
+                    "name": user_input.get("zone_name") or "Home",
+                    "latitude": float(user_input.get("latitude")),
+                    "longitude": float(user_input.get("longitude")),
+                    "radius_km": float(user_input.get("radius_km", 10)),
+                    "cooldown_s": int(user_input.get("cooldown_s", 300)),
+                }
             except Exception:
-                errors["zones"] = "invalid_json"
+                errors["latitude"] = "invalid"
+                errors["longitude"] = "invalid"
 
         if errors:
+            # re-present same form with errors
             schema = vol.Schema(
                 {
                     vol.Required("feed_url", default=user_input.get("feed_url")): str,
                     vol.Optional("scan_interval", default=user_input.get("scan_interval", DEFAULT_SCAN_INTERVAL)): int,
-                    vol.Optional("zones", default=zones_raw): str,
+                    vol.Optional("zone_name", default=user_input.get("zone_name", "")): str,
+                    vol.Optional("latitude", default=user_input.get("latitude", "")): str,
+                    vol.Optional("longitude", default=user_input.get("longitude", "")): str,
+                    vol.Optional("radius_km", default=user_input.get("radius_km", 10)): vol.Coerce(float),
+                    vol.Optional("cooldown_s", default=user_input.get("cooldown_s", 300)): int,
                 }
             )
             return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
@@ -108,7 +125,7 @@ class HaLightningConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         data = {
             "feed_url": user_input.get("feed_url"),
             "scan_interval": int(user_input.get("scan_interval", DEFAULT_SCAN_INTERVAL)),
-            "zones": zones,
+            "zone": zone,
         }
 
         return self.async_create_entry(title="HA Lightning", data=data)
@@ -124,34 +141,55 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         self.config_entry = config_entry
-        # work copy of zones
-        self._zones = list(self.config_entry.options.get("zones", self.config_entry.data.get("zones", [])))
+        # work copy of single zone
+        opt_zone = self.config_entry.options.get("zone") if isinstance(self.config_entry.options.get("zone"), dict) else None
+        data_zone = self.config_entry.data.get("zone") if isinstance(self.config_entry.data.get("zone"), dict) else None
+        # fallback for legacy 'zones' list
+        legacy_zones = self.config_entry.options.get("zones") or self.config_entry.data.get("zones")
+        if isinstance(legacy_zones, list) and len(legacy_zones) > 0:
+            legacy_zone = legacy_zones[0]
+        else:
+            legacy_zone = None
+        self._zone = opt_zone or data_zone or legacy_zone
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Initial step: edit basic settings or manage zones."""
         if user_input is None:
             data = self.config_entry.options or self.config_entry.data
-            zones = self._zones
-            zones_text = json.dumps(zones, indent=2) if zones else ""
+            z = self._zone or {}
             schema = vol.Schema(
                 {
                     vol.Required("feed_url", default=data.get("feed_url", "")): str,
                     vol.Optional("scan_interval", default=data.get("scan_interval", DEFAULT_SCAN_INTERVAL)): int,
-                    vol.Optional("manage_zones", default=False): bool,
+                    vol.Optional("zone_name", default=z.get("name", "")): str,
+                    vol.Optional("latitude", default=z.get("latitude", "")): str,
+                    vol.Optional("longitude", default=z.get("longitude", "")): str,
+                    vol.Optional("radius_km", default=z.get("radius_km", 10)): vol.Coerce(float),
+                    vol.Optional("cooldown_s", default=z.get("cooldown_s", 300)): int,
                 }
             )
             return self.async_show_form(step_id="init", data_schema=schema)
 
-        # if user requested to manage zones, go to zones step
-        if user_input.get("manage_zones"):
-            return await self.async_step_zones()
-
-        # otherwise validate feed and save options
+        # validate feed and assemble zone
         errors = {}
         try:
             await async_validate_feed(self.hass, user_input.get("feed_url", ""))
         except ValueError as exc:
             errors["feed_url"] = str(exc)
+
+        zone = None
+        if user_input.get("latitude") and user_input.get("longitude"):
+            try:
+                zone = {
+                    "name": user_input.get("zone_name") or "Home",
+                    "latitude": float(user_input.get("latitude")),
+                    "longitude": float(user_input.get("longitude")),
+                    "radius_km": float(user_input.get("radius_km", 10)),
+                    "cooldown_s": int(user_input.get("cooldown_s", 300)),
+                }
+            except Exception:
+                errors["latitude"] = "invalid"
+                errors["longitude"] = "invalid"
 
         if errors:
             data = self.config_entry.options or self.config_entry.data
@@ -159,7 +197,11 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 {
                     vol.Required("feed_url", default=user_input.get("feed_url", data.get("feed_url", ""))): str,
                     vol.Optional("scan_interval", default=user_input.get("scan_interval", data.get("scan_interval", DEFAULT_SCAN_INTERVAL))): int,
-                    vol.Optional("manage_zones", default=False): bool,
+                    vol.Optional("zone_name", default=user_input.get("zone_name", "")): str,
+                    vol.Optional("latitude", default=user_input.get("latitude", "")): str,
+                    vol.Optional("longitude", default=user_input.get("longitude", "")): str,
+                    vol.Optional("radius_km", default=user_input.get("radius_km", 10)): vol.Coerce(float),
+                    vol.Optional("cooldown_s", default=user_input.get("cooldown_s", 300)): int,
                 }
             )
             return self.async_show_form(step_id="init", data_schema=schema, errors=errors)
@@ -167,7 +209,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         options = {
             "feed_url": user_input.get("feed_url"),
             "scan_interval": int(user_input.get("scan_interval", DEFAULT_SCAN_INTERVAL)),
-            "zones": self._zones,
+            "zone": zone,
         }
         return self.async_create_entry(title="", data=options)
 

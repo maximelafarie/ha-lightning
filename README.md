@@ -26,7 +26,7 @@ Configuration (UI)
 - In the UI setup you can set:
   - feed_url: either a HTTP(S) JSON feed or a websocket URL (e.g., `wss://live2.lightningmaps.org/`)
   - scan_interval: polling interval (seconds) for HTTP feeds
-  - zones: add, edit, remove zones (name, latitude, longitude, radius_km, cooldown_s)
+  - zone: configure a single zone with fields: zone_name, latitude, longitude, radius_km, cooldown_s
 
 Example YAML (legacy YAML support)
 

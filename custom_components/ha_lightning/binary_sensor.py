@@ -29,23 +29,24 @@ def _haversine_km(lat1, lon1, lat2, lon2):
 
 async def async_setup_platform(hass: HomeAssistant, config, async_add_entities, discovery_info=None):
     coordinator: LightningCoordinator = hass.data[DOMAIN]["coordinator"]
-    zones = hass.data[DOMAIN].get("zones", [])
+    zone = hass.data[DOMAIN].get("zone")
 
-    entities = []
-    for z in zones:
-        try:
-            name = z.get("name")
-            lat = float(z.get("latitude"))
-            lon = float(z.get("longitude"))
-            radius = float(z.get("radius_km", 10))
-            cooldown = int(z.get("cooldown_s", 300))
-        except Exception as exc:
-            _LOGGER.exception("Invalid zone config: %s", z)
-            continue
-        entities.append(LightningZoneBinarySensor(coordinator, name, lat, lon, radius, cooldown, hass))
+    if not zone:
+        _LOGGER.debug("No zone configured for ha_lightning, not creating binary_sensor")
+        return
 
-    if entities:
-        async_add_entities(entities)
+    try:
+        name = zone.get("name")
+        lat = float(zone.get("latitude"))
+        lon = float(zone.get("longitude"))
+        radius = float(zone.get("radius_km", 10))
+        cooldown = int(zone.get("cooldown_s", 300))
+    except Exception as exc:
+        _LOGGER.exception("Invalid zone config: %s", zone)
+        return
+
+    entity = LightningZoneBinarySensor(coordinator, name, lat, lon, radius, cooldown, hass)
+    async_add_entities([entity])
 
 
 class LightningZoneBinarySensor(CoordinatorEntity, BinarySensorEntity):

@@ -1,7 +1,7 @@
 {
   "domain": "ha_lightning",
   "name": "HA Lightning (Blitzortung)",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "documentation": "https://github.com/maximelafarie/ha-lightning",
   "requirements": ["aiohttp"],
   "dependencies": [],
