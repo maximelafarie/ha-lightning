@@ -25,11 +25,15 @@ jobs:
           VERSION=$(jq -r .version custom_components/ha_lightning/manifest.json)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Create release archive
+      - name: Create release archive (integration-only)
         run: |
-          echo "Creating release archive..."
+          echo "Creating release archive with integration files only..."
           git fetch --no-tags --depth=1 origin || true
-          git archive --format=zip -o release.zip HEAD
+          # archive only the integration folder and hacs.json + README for HACS
+          git archive --format=zip -o release.zip HEAD custom_components/ha_lightning hacs.json README.md || (
+            echo "Falling back to full archive"
+            git archive --format=zip -o release.zip HEAD
+          )
 
       - name: Create GitHub Release and attach archive
         # use softprops/action-gh-release to avoid deprecated set-output usage
