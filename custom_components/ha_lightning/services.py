@@ -16,15 +16,13 @@ from .const import DOMAIN
 
 
 async def async_setup_services(hass: HomeAssistant) -> None:
-    async def add_zone(call: ServiceCall) -> None:
+    async def set_zone(call: ServiceCall) -> None:
         data = call.data
-        zones = hass.data[DOMAIN].setdefault("zones", [])
-        zones.append(data)
+        # set single zone in memory (not persisted)
+        hass.data[DOMAIN]["zone"] = data
 
-    async def remove_zone(call: ServiceCall) -> None:
-        name = call.data.get("name")
-        zones = hass.data[DOMAIN].get("zones", [])
-        hass.data[DOMAIN]["zones"] = [z for z in zones if z.get("name") != name]
+    async def clear_zone(call: ServiceCall) -> None:
+        hass.data[DOMAIN]["zone"] = None
 
-    hass.services.async_register(DOMAIN, "add_zone", add_zone)
-    hass.services.async_register(DOMAIN, "remove_zone", remove_zone)
+    hass.services.async_register(DOMAIN, "set_zone", set_zone)
+    hass.services.async_register(DOMAIN, "clear_zone", clear_zone)
