@@ -1,13 +1,15 @@
 # ha-lightning
 
-Home Assistant custom integration that fetches lightning strikes (Blitzortung-style feeds) and triggers automations when strikes occur inside configured zones.
+Home Assistant custom integration that fetches lightning strikes and triggers automations when strikes occur inside configured zones.
 
 Features
-- Polls a configurable JSON feed of recent strikes and exposes them as a sensor attribute
+- Supports HTTP(S) JSON feeds or the lightningmaps.org websocket (wss://live2.lightningmaps.org/)
+- Exposes recent strikes as a single sensor attribute
 - Creates binary sensors for user-defined zones (latitude, longitude, radius) that switch ON when a strike is detected in the zone
 - Fires event `ha_lightning.zone_strike` with payload {zone, strike}
 - Includes a simple Leaflet-based Lovelace card (copy to your HA `www/` folder) to display strikes on a map and zoom/center the view
 
+Note: The integration will use the websocket feed automatically when the configured `feed_url` starts with `ws://` or `wss://`. If using the websocket, the integration sends a subscription payload including a bounding box (derived from zones) so the server returns strokes for the area of interest.
 Installation
 1. Copy the `custom_components/ha_lightning` folder into your Home Assistant `config/custom_components/` directory.
 2. If you want the Lovelace card, copy `custom_components/ha_lightning/www/ha-lightning-card.js` to `<config>/www/ha-lightning-card.js` (or add the resource directly from the file).
