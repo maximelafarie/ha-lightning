@@ -25,21 +25,39 @@ jobs:
           VERSION=$(jq -r .version custom_components/ha_lightning/manifest.json)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Create release archive (integration files at zip root)
+      - name: Create release archive (integration files at zip root and under custom_components)
         run: |
-          echo "Creating release archive with integration files at zip root..."
+          echo "Creating release archive with multiple layouts for HACS compatibility..."
           git fetch --no-tags --depth=1 origin || true
           rm -rf package || true
           mkdir -p package
-          # copy integration files directly into package root
+
+          # copy integration files directly into package root (manifest.json will be at root)
           cp -r custom_components/ha_lightning/* package/
-          # create zip from package contents so integration files are at zip root
+
+          # also provide traditional layout under custom_components/ha_lightning/
+          mkdir -p package/custom_components/ha_lightning
+          cp -r custom_components/ha_lightning/* package/custom_components/ha_lightning/
+
+          # include hacs.json and README at root
+          cp hacs.json package/ || true
+          cp README.md package/ || true
+
+          # create zip from package contents
           (cd package && zip -r ../release.zip .)
 
       - name: Inspect archive contents
         run: |
           echo "Listing release.zip contents:"
           unzip -l release.zip || true
+
+      - name: Validate archive contains manifest.json
+        run: |
+          if unzip -l release.zip | grep -q "manifest.json"; then
+            echo "manifest.json found in archive"
+          else
+            echo "ERROR: manifest.json not found in archive"; exit 1
+          fi
 
       - name: Upload release artifact (for inspection)
         uses: actions/upload-artifact@v4
