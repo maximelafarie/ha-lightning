@@ -1,4 +1,4 @@
-"""Binary sensors representing user-defined zones that become 'on' when a strike occurs inside."""
+"""Binary sensor for the configured single zone; switches 'on' when a strike occurs inside the zone."""
 from __future__ import annotations
 
 from math import radians, cos, sin, asin, sqrt

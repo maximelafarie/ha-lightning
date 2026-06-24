@@ -1,10 +1,10 @@
-"""Optional services for ha_lightning (zone management)
+"""Optional services for ha_lightning (single-zone runtime management)
 
-This minimal implementation exposes two services (YAML-only integration):
- - ha_lightning.add_zone
- - ha_lightning.remove_zone
+This implementation exposes two runtime services:
+ - ha_lightning.set_zone (set a single zone dict)
+ - ha_lightning.clear_zone (clear the runtime zone)
 
-Zones are stored in hass.data[DOMAIN]['zones'] and are not persisted; users should manage zones in configuration.yaml for persistence.
+These services modify the in-memory zone (hass.data[DOMAIN]['zone']) and are not persisted. Use the UI Options flow to save configuration persistently.
 """
 from __future__ import annotations
 
