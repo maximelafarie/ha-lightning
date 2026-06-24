@@ -137,7 +137,7 @@ class HaLightningConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class OptionsFlowHandler(config_entries.OptionsFlow):
-    """Manage options for the integration (zones editor)."""
+    """Manage options for the integration (single-zone editor)."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         self.config_entry = config_entry
@@ -213,81 +213,3 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         }
         return self.async_create_entry(title="", data=options)
 
-    async def async_step_zones(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Manage zones list: add/edit/remove."""
-        if user_input is None:
-            # build choices
-            choices = [("add", "Add zone")]
-            for idx, z in enumerate(self._zones):
-                name = z.get("name") or f"Zone {idx+1}"
-                choices.append((f"edit_{idx}", f"Edit: {name}"))
-                choices.append((f"remove_{idx}", f"Remove: {name}"))
-            choices.append(("done", "Done"))
-            schema = vol.Schema({vol.Required("action", default="done"): vol.In([c[0] for c in choices])})
-            # present a friendly label list via description_placeholders
-            placeholders = {k: v for k, v in choices}
-            return self.async_show_form(step_id="zones", data_schema=schema)
-
-        action = user_input.get("action")
-        if action == "add":
-            return await self.async_step_zone_edit()
-        if action and action.startswith("edit_"):
-            idx = int(action.split("_")[1])
-            return await self.async_step_zone_edit({"index": idx})
-        if action and action.startswith("remove_"):
-            idx = int(action.split("_")[1])
-            try:
-                self._zones.pop(idx)
-            except Exception:
-                pass
-            return await self.async_step_zones()
-        # done -> back to init
-        return await self.async_step_init({"feed_url": self.config_entry.options.get("feed_url", self.config_entry.data.get("feed_url")), "scan_interval": self.config_entry.options.get("scan_interval", self.config_entry.data.get("scan_interval", DEFAULT_SCAN_INTERVAL)), "manage_zones": False})
-
-    async def async_step_zone_edit(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Add or edit a single zone."""
-        index = None
-        if user_input and isinstance(user_input.get("index"), int):
-            index = user_input.get("index")
-        if user_input is None or (user_input is not None and "name" not in user_input):
-            # initial form
-            if index is not None and 0 <= index < len(self._zones):
-                z = self._zones[index]
-                defaults = {
-                    "name": z.get("name", ""),
-                    "latitude": z.get("latitude", ""),
-                    "longitude": z.get("longitude", ""),
-                    "radius_km": z.get("radius_km", 10),
-                    "cooldown_s": z.get("cooldown_s", 300),
-                }
-            else:
-                defaults = {"name": "", "latitude": "", "longitude": "", "radius_km": 10, "cooldown_s": 300}
-            schema = vol.Schema(
-                {
-                    vol.Required("name", default=defaults["name"]): str,
-                    vol.Required("latitude", default=defaults["latitude"]): str,
-                    vol.Required("longitude", default=defaults["longitude"]): str,
-                    vol.Optional("radius_km", default=defaults["radius_km"]): vol.Coerce(float),
-                    vol.Optional("cooldown_s", default=defaults["cooldown_s"]): int,
-                }
-            )
-            return self.async_show_form(step_id="zone_edit", data_schema=schema)
-
-        # process submission
-        try:
-            z = {
-                "name": str(user_input.get("name")),
-                "latitude": float(user_input.get("latitude")),
-                "longitude": float(user_input.get("longitude")),
-                "radius_km": float(user_input.get("radius_km", 10)),
-                "cooldown_s": int(user_input.get("cooldown_s", 300)),
-            }
-        except Exception:
-            return await self.async_step_zone_edit(user_input)
-
-        if index is not None and 0 <= index < len(self._zones):
-            self._zones[index] = z
-        else:
-            self._zones.append(z)
-
-        return await self.async_step_zones()
