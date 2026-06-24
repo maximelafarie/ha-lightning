@@ -4,21 +4,19 @@ from __future__ import annotations
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.core import HomeAssistant
-from homeassistant.const import TEMP_C
 
-from .coordinator import LightningCoordinator
 from .const import DOMAIN, ATTR_STRIKES
 
 
 async def async_setup_platform(hass: HomeAssistant, config, async_add_entities, discovery_info=None):
-    coordinator: LightningCoordinator = hass.data[DOMAIN]["coordinator"]
+    coordinator = hass.data[DOMAIN]["coordinator"]
     async_add_entities([LightningSensor(coordinator)], True)
 
 
 class LightningSensor(CoordinatorEntity, Entity):
     """Sensor that holds recent strikes in attributes"""
 
-    def __init__(self, coordinator: LightningCoordinator):
+    def __init__(self, coordinator):
         super().__init__(coordinator)
         self._attr_name = "HA Lightning Strikes"
         self._attr_unique_id = "ha_lightning_strikes"

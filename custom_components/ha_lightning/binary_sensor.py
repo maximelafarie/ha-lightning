@@ -10,7 +10,6 @@ from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.core import HomeAssistant
 
-from .coordinator import LightningCoordinator
 from .const import DOMAIN, EVENT_ZONE_STRIKE
 
 _LOGGER = logging.getLogger(__name__)
@@ -28,7 +27,7 @@ def _haversine_km(lat1, lon1, lat2, lon2):
 
 
 async def async_setup_platform(hass: HomeAssistant, config, async_add_entities, discovery_info=None):
-    coordinator: LightningCoordinator = hass.data[DOMAIN]["coordinator"]
+    coordinator = hass.data[DOMAIN]["coordinator"]
     zone = hass.data[DOMAIN].get("zone")
 
     if not zone:
@@ -50,7 +49,7 @@ async def async_setup_platform(hass: HomeAssistant, config, async_add_entities, 
 
 
 class LightningZoneBinarySensor(CoordinatorEntity, BinarySensorEntity):
-    def __init__(self, coordinator: LightningCoordinator, name: str, lat: float, lon: float, radius_km: float, cooldown_s: int, hass: HomeAssistant):
+    def __init__(self, coordinator, name: str, lat: float, lon: float, radius_km: float, cooldown_s: int, hass: HomeAssistant):
         super().__init__(coordinator)
         self._name = f"Lightning Zone {name}"
         self._unique_id = f"ha_lightning_zone_{name}"
