@@ -86,33 +86,30 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # register services (idempotent)
     await services.async_setup_services(hass)
 
-    # forward platforms
-    await hass.config_entries.async_forward_entry_setup(entry, "sensor")
-    await hass.config_entries.async_forward_entry_setup(entry, "binary_sensor")
+    # forward platforms (use plural API when available)
+    try:
+        await hass.config_entries.async_forward_entry_setups(entry, ("sensor", "binary_sensor"))
+    except AttributeError:
+        # fallback for older/newer HA versions
+        await hass.config_entries.async_forward_entry_setup(entry, "sensor")
+        await hass.config_entries.async_forward_entry_setup(entry, "binary_sensor")
 
-    # if websocket URL requested, start ws listener using zones to compute bbox
+    # if websocket URL requested, start ws listener using zone to compute bbox
     if feed_url and str(feed_url).startswith(("ws://", "wss://")):
-        # compute bbox [max_lat, max_lon, min_lat, min_lon] from zones if available
+        # compute bbox [max_lat, max_lon, min_lat, min_lon] from single zone if available
         bbox = None
         try:
-            zones = zones or []
-            if zones:
-                lats = []
-                lons = []
-                for z in zones:
-                    try:
-                        lat = float(z.get("latitude"))
-                        lon = float(z.get("longitude"))
-                        radius_km = float(z.get("radius_km", 10))
-                    except Exception:
-                        continue
+            if zone:
+                try:
+                    lat = float(zone.get("latitude"))
+                    lon = float(zone.get("longitude"))
+                    radius_km = float(zone.get("radius_km", 10))
                     # approximate degree extents
                     lat_deg = radius_km / 111.0
                     lon_deg = radius_km / max(0.1, (111.320 * abs(lat) / 45 + 1))
-                    lats.extend([lat + lat_deg, lat - lat_deg])
-                    lons.extend([lon + lon_deg, lon - lon_deg])
-                if lats and lons:
-                    bbox = [max(lats), max(lons), min(lats), min(lons)]
+                    bbox = [lat + lat_deg, lon + lon_deg, lat - lat_deg, lon - lon_deg]
+                except Exception:
+                    bbox = None
         except Exception:
             bbox = None
         # start websocket background task
@@ -126,12 +123,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    unloaded = await hass.config_entries.async_forward_entry_unload(entry, "sensor")
-    unloaded_bs = await hass.config_entries.async_forward_entry_unload(entry, "binary_sensor")
+    # try the newer API first
+    try:
+        unloaded = await hass.config_entries.async_unload_platforms(entry, ["sensor", "binary_sensor"])
+        unloaded_bs = unloaded
+    except AttributeError:
+        unloaded = await hass.config_entries.async_forward_entry_unload(entry, "sensor")
+        unloaded_bs = await hass.config_entries.async_forward_entry_unload(entry, "binary_sensor")
 
     # clean up data
     hass.data.get(DOMAIN, {}).pop("coordinator", None)
-    hass.data.get(DOMAIN, {}).pop("zones", None)
+    hass.data.get(DOMAIN, {}).pop("zone", None)
     hass.data.get(DOMAIN, {}).pop("entry_id", None)
 
     return bool(unloaded and unloaded_bs)
